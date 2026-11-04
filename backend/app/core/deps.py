@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 from app.models.user import User, Role
 from app.core.security import decode_access_token
 from app.database import get_db
-from app.models.user import User
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -43,3 +42,13 @@ def get_current_user(user: User = Depends(get_token_user)) -> User:
     if user.must_change_password:
         raise HTTPException(status_code=403, detail="Password change required")
     return user
+
+def require_roles(*allowed: Role):
+    """Use as: Depends(require_roles(Role.admin)) or Depends(require_roles(Role.admin, Role.hr))."""
+
+    def checker(user: User = Depends(get_current_user)) -> User:
+        if user.role not in allowed:
+            raise HTTPException(status_code=403, detail="You do not have permission to do this")
+        return user
+
+    return checker
