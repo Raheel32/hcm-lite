@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+import secrets
 import bcrypt
 import jwt
 
@@ -33,3 +34,18 @@ def decode_access_token(token: str):
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.PyJWTError:
         return None
+
+# No look-alike characters (0/O, 1/l/I) so the password is easy to read out loud
+_TEMP_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+
+
+def generate_temp_password(length: int = 12) -> str:
+    """Random password with at least one uppercase letter, one lowercase letter and one digit."""
+    while True:
+        password = "".join(secrets.choice(_TEMP_ALPHABET) for _ in range(length))
+        if (
+            any(c.isupper() for c in password)
+            and any(c.islower() for c in password)
+            and any(c.isdigit() for c in password)
+        ):
+            return password

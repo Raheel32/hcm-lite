@@ -10,6 +10,7 @@ from app.routes import setup, auth
 from app.routes import setup, auth, settings
 from app.routes.org import departments_router, designations_router
 from app.routes.leave_config import leave_types_router, holidays_router
+from app.routes import setup, auth, settings, users
 
 
 @asynccontextmanager
@@ -27,6 +28,7 @@ app.include_router(departments_router)
 app.include_router(designations_router)
 app.include_router(leave_types_router)
 app.include_router(holidays_router)
+app.include_router(users.router)
 
 
 @app.get("/health")
