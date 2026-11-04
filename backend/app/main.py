@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db, Base, engine
 import app.models  # noqa: F401
 from app.routes import setup, auth
+from app.routes import setup, auth, settings
 
 
 @asynccontextmanager
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="HCM Lite API", lifespan=lifespan)
 app.include_router(setup.router)
 app.include_router(auth.router)
+app.include_router(settings.router)
 
 
 @app.get("/health")
