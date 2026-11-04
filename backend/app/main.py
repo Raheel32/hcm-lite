@@ -8,6 +8,7 @@ from app.database import get_db, Base, engine
 import app.models  # noqa: F401
 from app.routes import setup, auth
 from app.routes import setup, auth, settings
+from app.routes.org import departments_router, designations_router
 
 
 @asynccontextmanager
@@ -21,6 +22,8 @@ app = FastAPI(title="HCM Lite API", lifespan=lifespan)
 app.include_router(setup.router)
 app.include_router(auth.router)
 app.include_router(settings.router)
+app.include_router(departments_router)
+app.include_router(designations_router)
 
 
 @app.get("/health")
