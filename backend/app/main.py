@@ -25,6 +25,8 @@ app.include_router(auth.router)
 app.include_router(settings.router)
 app.include_router(departments_router)
 app.include_router(designations_router)
+app.include_router(leave_types_router)
+app.include_router(holidays_router)
 
 
 @app.get("/health")
