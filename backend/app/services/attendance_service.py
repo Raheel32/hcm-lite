@@ -156,9 +156,10 @@ def check_in(db: Session, user: User) -> dict:
         raise NotStarted()
     if _find_record(db, employee.id, today) is not None:
         raise AlreadyCheckedIn()
+    is_late = is_late_arrival(cfg, local)
 
-    start = datetime.combine(today, cfg.office_start).replace(tzinfo=clock.office_tz())
-    is_late = local > start + timedelta(minutes=cfg.grace_minutes)
+    #start = datetime.combine(today, cfg.office_start).replace(tzinfo=clock.office_tz())
+    #is_late = local > start + timedelta(minutes=cfg.grace_minutes)
 
     record = Attendance(
         employee_id=employee.id,
@@ -316,3 +317,17 @@ def daily_board(
         "items": items[offset: offset + limit],
         "total": len(items),
     }
+
+# ---------- shared with the corrections service ----------
+
+as_utc = _as_utc
+to_local = _local
+final_status = _final_status
+find_record = _find_record
+entries_for_range = _entries_for_range
+
+
+def is_late_arrival(cfg, local_dt: datetime) -> bool:
+    """The single place that decides if an arrival is late: after office start + grace."""
+    start = datetime.combine(local_dt.date(), cfg.office_start).replace(tzinfo=clock.office_tz())
+    return local_dt > start + timedelta(minutes=cfg.grace_minutes)

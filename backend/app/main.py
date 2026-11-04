@@ -6,13 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, Base, engine
 import app.models  # noqa: F401
-from app.routes import setup, auth
 from app.routes import setup, auth, settings
 from app.routes.org import departments_router, designations_router
 from app.routes.leave_config import leave_types_router, holidays_router
-from app.routes import setup, auth, settings, users
-from app.routes import setup, auth, settings, users, employees
-from app.routes import setup, auth, settings, users, employees, attendance
+from app.routes import setup, auth, settings, users, employees, attendance, corrections
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,6 +29,7 @@ app.include_router(holidays_router)
 app.include_router(users.router)
 app.include_router(employees.router)
 app.include_router(attendance.router)
+app.include_router(corrections.router)
 
 @app.get("/health")
 def health_check():
