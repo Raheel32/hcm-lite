@@ -181,7 +181,14 @@ def test_update_and_delete_holiday(client, admin):
 
 
 def test_update_holiday_to_a_taken_date_is_409(client, admin):
-    client.post("/holidays", json={"name": "A", "date": "2026-05-01"}, headers=admin)
-    other = client.post("/holidays", json={"name": "B", "date": "2026-05-02"}, headers=admin).json()
-    r = client.put(f"/holidays/{other['id']}", json={"name": "B", "date": "2026-05-01"}, headers=admin)
+    first = client.post("/holidays", json={"name": "Labour Day", "date": "2026-05-01"}, headers=admin)
+    other = client.post("/holidays", json={"name": "Spring Break", "date": "2026-05-02"}, headers=admin)
+    assert first.status_code == 201
+    assert other.status_code == 201
+
+    r = client.put(
+        f"/holidays/{other.json()['id']}",
+        json={"name": "Spring Break", "date": "2026-05-01"},
+        headers=admin,
+    )
     assert r.status_code == 409
