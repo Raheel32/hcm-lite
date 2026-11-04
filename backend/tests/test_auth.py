@@ -69,7 +69,10 @@ def test_me_returns_current_user(client, make_user):
     r = client.get("/auth/me", headers=bearer(token))
     assert r.status_code == 200
     assert r.json()["email"] == "emp@test.com"
-    assert "password" not in r.text
+    body = r.json()
+    assert "password" not in body
+    assert "password_hash" not in body
+    assert "$2b$" not in r.text  # a bcrypt hash always starts with $2b$
 
 
 def test_temporary_password_flow(client, make_user):
