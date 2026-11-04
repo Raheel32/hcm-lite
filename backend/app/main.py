@@ -12,7 +12,7 @@ from app.routes.org import departments_router, designations_router
 from app.routes.leave_config import leave_types_router, holidays_router
 from app.routes import setup, auth, settings, users
 from app.routes import setup, auth, settings, users, employees
-
+from app.routes import setup, auth, settings, users, employees, attendance
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,6 +31,7 @@ app.include_router(leave_types_router)
 app.include_router(holidays_router)
 app.include_router(users.router)
 app.include_router(employees.router)
+app.include_router(attendance.router)
 
 @app.get("/health")
 def health_check():
