@@ -390,11 +390,13 @@ def test_board_only_lists_people_employed_that_day(client, hr, make_employee, mo
     make_employee(email="g@t.com", name="Gone", join=date(2026, 1, 1), exit_date=date(2026, 11, 2))
     set_now(monkeypatch, "2026-11-04 11:00")
 
-    names = {i["full_name"] for i in client.get("/attendance/board?date=2026-11-03", headers=hr).json()["items"]}
-    assert names == {"Ann", "Gone"}
-    names = {i["full_name"] for i in client.get("/attendance/board?date=2026-11-04", headers=hr).json()["items"]}
-    assert names == {"Ann", "New Joiner"}
+    def names(day):
+        items = client.get(f"/attendance/board?date={day}", headers=hr).json()["items"]
+        return {i["full_name"] for i in items}
 
+    assert names("2026-11-02") == {"Ann", "Gone"}        # Gone's last day counts
+    assert names("2026-11-03") == {"Ann"}                # the day after they left
+    assert names("2026-11-04") == {"Ann", "New Joiner"}  # New Joiner starts today
 
 def test_board_on_a_weekend(client, hr, make_employee, monkeypatch):
     make_employee()
