@@ -1,17 +1,22 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import get_db, Base, engine
 import app.models  # noqa: F401
-from app.routes import setup
 from app.routes import setup, auth
 
-Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="HCM Lite API")
-app.include_router(setup.router)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Runs once when the server starts (not when the file is imported)
+    Base.metadata.create_all(bind=engine)
+    yield
 
+
+app = FastAPI(title="HCM Lite API", lifespan=lifespan)
 app.include_router(setup.router)
 app.include_router(auth.router)
 
