@@ -9,6 +9,7 @@ import app.models  # noqa: F401
 from app.routes import setup, auth
 from app.routes import setup, auth, settings
 from app.routes.org import departments_router, designations_router
+from app.routes.leave_config import leave_types_router, holidays_router
 
 
 @asynccontextmanager
