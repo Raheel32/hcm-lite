@@ -11,7 +11,7 @@ from app.models.attendance import Attendance, DayStatus
 from app.models.employee import Employee
 from app.models.user import User
 from app.services import calendar_service, employee_service, settings_service
-
+from app.models.leave import LeaveRequest, LeaveStatus
 
 class AlreadyCheckedIn(Exception):
     pass

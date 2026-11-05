@@ -9,7 +9,7 @@ import app.models  # noqa: F401
 from app.routes import setup, auth, settings
 from app.routes.org import departments_router, designations_router
 from app.routes.leave_config import leave_types_router, holidays_router
-from app.routes import setup, auth, settings, users, employees, attendance, corrections
+from app.routes import setup, auth, settings, users, employees, attendance, corrections, leave
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,6 +30,7 @@ app.include_router(users.router)
 app.include_router(employees.router)
 app.include_router(attendance.router)
 app.include_router(corrections.router)
+app.include_router(leave.router)
 
 @app.get("/health")
 def health_check():

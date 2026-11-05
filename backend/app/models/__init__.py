@@ -6,3 +6,4 @@ from app.models.leave_config import LeaveType, Holiday
 from app.models.employee import Employee, EmployeeStatus, Gender
 from app.models.attendance import Attendance, DayStatus
 from app.models.correction import AttendanceCorrection, CorrectionStatus
+from app.models.leave import LeaveRequest, LeaveStatus
