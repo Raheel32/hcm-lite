@@ -92,15 +92,49 @@ def _from_record(record: Attendance, today: date) -> dict:
         "source": record.source,
     }
 
-
 def _approved_leave_days(db: Session, employee_id: int, start: date, end: date) -> set[date]:
-    # Phase 5 will return the employee's approved leave days here.
-    return set()
+    """Every calendar day inside the employee's approved leave that falls in start..end.
+    Weekends and holidays are shown as weekend/holiday by build_day, so they need no special handling."""
+    rows = (
+        db.query(LeaveRequest.start_date, LeaveRequest.end_date)
+        .filter(
+            LeaveRequest.employee_id == employee_id,
+            LeaveRequest.status == LeaveStatus.approved,
+            LeaveRequest.start_date <= end,
+            LeaveRequest.end_date >= start,
+        )
+        .all()
+    )
+    days = set()
+    for leave_start, leave_end in rows:
+        day = max(leave_start, start)
+        last = min(leave_end, end)
+        while day <= last:
+            days.add(day)
+            day += timedelta(days=1)
+    return days
 
 
 def _employees_on_leave(db: Session, day: date) -> set[int]:
+    rows = (
+        db.query(LeaveRequest.employee_id)
+        .filter(
+            LeaveRequest.status == LeaveStatus.approved,
+            LeaveRequest.start_date <= day,
+            LeaveRequest.end_date >= day,
+        )
+        .all()
+    )
+    return {row[0] for row in rows}
+
+#def _approved_leave_days(db: Session, employee_id: int, start: date, end: date) -> set[date]:
+    # Phase 5 will return the employee's approved leave days here.
+    #return set()
+
+
+#def _employees_on_leave(db: Session, day: date) -> set[int]:
     # Phase 5 will return the ids of employees on approved leave on this day.
-    return set()
+    #return set()
 
 
 def build_day(day, employee, record, weekend_days, holidays, leave_days, today) -> dict | None:
