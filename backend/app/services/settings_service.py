@@ -4,6 +4,7 @@ from app.models.company import Company
 from app.models.settings import CompanySettings
 from app.schemas.settings import SettingsUpdate
 from app.services import audit_service as audit
+from backend.app.schemas import settings
 
 SETTINGS_FIELDS = (
     "office_start", "grace_minutes", "half_day_hours", "weekend_days",
@@ -32,8 +33,13 @@ def get_settings(db: Session) -> CompanySettings:
 
 def update_settings(db: Session, data: SettingsUpdate) -> CompanySettings:
     settings = get_settings(db)
+    before = audit.snapshot(settings, SETTINGS_FIELDS)
     for field, value in data.model_dump().items():
         setattr(settings, field, value)
+    audit.record_update(
+        db, "settings", settings.id, "Changed the company settings",
+        before, audit.snapshot(settings, SETTINGS_FIELDS),
+    )
     db.commit()
     db.refresh(settings)
     return settings

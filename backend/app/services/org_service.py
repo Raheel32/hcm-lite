@@ -1,5 +1,8 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from app.services import audit_service as audit
+
+ORG_FIELDS = ("name", "is_active")
 
 
 class DuplicateName(Exception):
@@ -29,6 +32,12 @@ def create_item(db: Session, model, name: str):
         raise DuplicateName()
     item = model(name=name, is_active=True)
     db.add(item)
+    db.flush()
+    kind = model.__name__.lower()  # "department" or "designation"
+    audit.record(
+        db, f"{kind}.create", kind, item.id, f"Created {kind} {item.name}",
+        after=audit.snapshot(item, ORG_FIELDS),
+    )
     db.commit()
     db.refresh(item)
     return item
@@ -40,8 +49,14 @@ def update_item(db: Session, model, item_id: int, name: str, is_active: bool):
         raise ItemNotFound()
     if _name_taken(db, model, name, exclude_id=item_id):
         raise DuplicateName()
+    kind = model.__name__.lower()
+    before = audit.snapshot(item, ORG_FIELDS)
     item.name = name
     item.is_active = is_active
+    audit.record_update(
+        db, kind, item.id, f"Updated {kind} {item.name}",
+        before, audit.snapshot(item, ORG_FIELDS),
+    )
     db.commit()
     db.refresh(item)
     return item
