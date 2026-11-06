@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 from app.config import settings
@@ -15,3 +15,10 @@ def now() -> datetime:
 
 def today() -> date:
     return now().date()
+
+
+def to_local(value: datetime) -> datetime:
+    """A stored time (UTC, with or without tzinfo) shown in office time."""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(office_tz())

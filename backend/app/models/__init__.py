@@ -8,3 +8,5 @@ from app.models.attendance import Attendance, DayStatus
 from app.models.correction import AttendanceCorrection, CorrectionStatus
 from app.models.leave import LeaveRequest, LeaveStatus
 from app.models.payroll import PayrollRun, Payslip, RunStatus
+from app.models.audit import AuditLog
+from app.models.comms import Announcement, Notification
