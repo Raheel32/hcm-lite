@@ -378,6 +378,12 @@ def recalculate_run(db: Session, run_id: int) -> PayrollRun:
 def delete_run(db: Session, run_id: int) -> None:
     run = _get_run(db, run_id)
     _require_draft(run)
+    totals = _totals(db, [run.id]).get(run.id, EMPTY_TOTALS)
+    audit.record(
+        db, "payroll.delete_run", "payroll_run", run.id,
+        f"Discarded the payroll draft for {run.year}-{run.month:02d}",
+        before={"period": f"{run.year}-{run.month:02d}", "employees": totals["employees"], "net_pay": totals["net_pay"]},
+    )
     db.delete(run)
     db.commit()
 
@@ -389,6 +395,35 @@ def finalize_run(db: Session, admin: User, run_id: int) -> PayrollRun:
     run.status = RunStatus.finalized
     run.finalized_by_id = admin.id
     run.finalized_at = datetime.now(timezone.utc)
+
+    period = f"{run.year}-{run.month:02d}"
+    label = f"{month_name[run.month]} {run.year}"
+    totals = _totals(db, [run.id]).get(run.id, EMPTY_TOTALS)
+    audit.record(
+        db, "payroll.finalize", "payroll_run", run.id, f"Finalized the payroll for {period}",
+        before={"status": "draft"},
+        after={"status": "finalized", "employees": totals["employees"], "net_pay": totals["net_pay"]},
+    )
+
+    # Tell everyone who can still sign in that their payslip is ready, and tell HR the run is locked
+    recipients = (
+        db.query(Payslip.id, Employee.user_id)
+        .join(Employee, Payslip.employee_id == Employee.id)
+        .join(User, Employee.user_id == User.id)
+        .filter(Payslip.run_id == run.id, User.is_active.is_(True))
+        .all()
+    )
+    for payslip_id, user_id in recipients:
+        notifications.notify(
+            db, user_id, "payslip.ready", "Your payslip is ready",
+            f"Your payslip for {label} is ready to download.",
+            entity_type="payslip", entity_id=payslip_id,
+        )
+    notifications.notify_hr(
+        db, "payroll.finalized", "Payroll finalized",
+        f"The payroll for {label} was finalized by {admin.email}.",
+        entity_type="payroll_run", entity_id=run.id,
+    )
     db.commit()
     db.refresh(run)
     return run
@@ -466,7 +501,14 @@ def update_salary_structure(db: Session, employee_id: int, basic_salary: float) 
     employee = employee_service.get_employee(db, employee_id)
     if employee.status == EmployeeStatus.exited:
         raise Conflict("This employee has already exited")
+    before = {"basic_salary": employee.basic_salary}
     employee.basic_salary = basic_salary
+    audit.record_update(
+        db, "employee", employee.id,
+        f"Changed the basic salary of {employee.full_name} ({employee.employee_code})",
+        before, {"basic_salary": basic_salary},
+        action="salary.update",
+    )
     db.commit()
     db.refresh(employee)
     return _structure_out(employee)
