@@ -4,6 +4,9 @@ import os
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["SECRET_KEY"] = "test-secret-key"
 
+os.environ["AI_API_KEY"] = ""   # tests must never call a real AI provider
+os.environ["AI_MODEL"] = ""
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

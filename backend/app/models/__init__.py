@@ -10,3 +10,4 @@ from app.models.leave import LeaveRequest, LeaveStatus
 from app.models.payroll import PayrollRun, Payslip, RunStatus
 from app.models.audit import AuditLog
 from app.models.comms import Announcement, Notification
+from app.models.ai import AiLog
