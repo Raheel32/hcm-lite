@@ -4,6 +4,7 @@ from app.core.security import hash_password
 from app.models.company import Company
 from app.models.user import User, Role
 from app.schemas.setup import SetupRequest
+from app.services import audit_service as audit
 
 
 class SetupAlreadyDone(Exception):

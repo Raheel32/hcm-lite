@@ -34,6 +34,8 @@ def get_token_user(
     user = db.get(User, user_id)
     if user is None or not user.is_active:
         raise _unauthorized("User not found or deactivated")
+    # Remember who is calling on this request's database session, so the audit log knows the actor
+    db.info["actor"] = {"id": user.id, "email": user.email, "role": user.role.value}
     return user
 
 
