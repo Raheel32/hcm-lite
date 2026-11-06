@@ -83,6 +83,12 @@ def _get_manageable_user(db: Session, user_id: int) -> User:
 
 def set_active(db: Session, user_id: int, active: bool) -> User:
     user = _get_manageable_user(db, user_id)
+    if user.is_active != active:  # nothing is logged when nothing changes
+        audit.record(
+            db, "user.activate" if active else "user.deactivate", "user", user.id,
+            f"{'Activated' if active else 'Deactivated'} the login {user.email}",
+            before={"is_active": user.is_active}, after={"is_active": active},
+        )
     user.is_active = active
     db.commit()
     db.refresh(user)
@@ -94,6 +100,10 @@ def reset_password(db: Session, user_id: int) -> tuple[User, str]:
     temp_password = generate_temp_password()
     user.password_hash = hash_password(temp_password)
     user.must_change_password = True
+    audit.record(
+        db, "user.reset_password", "user", user.id, f"Reset the password of {user.email}",
+        after={"must_change_password": True},  # the new password itself is never stored
+    )
     db.commit()
     db.refresh(user)
     return user, temp_password

@@ -8,6 +8,12 @@ from app.models.org import Department, Designation
 from app.models.user import Role, User
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate
 from app.services import user_service
+from app.services import audit_service as audit
+
+EMPLOYEE_FIELDS = (
+    "employee_code", "full_name", "phone", "address", "gender", "department_id",
+    "designation_id", "join_date", "exit_date", "status", "basic_salary",
+)
 
 
 class InvalidDepartment(Exception):
