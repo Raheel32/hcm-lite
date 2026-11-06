@@ -288,6 +288,12 @@ def create_run(db: Session, user: User, year: int, month: int) -> PayrollRun:
     db.add(run)
     try:
         _populate(db, run, cfg)
+        totals = _totals(db, [run.id]).get(run.id, EMPTY_TOTALS)
+        audit.record(
+            db, "payroll.create_run", "payroll_run", run.id,
+            f"Created the payroll draft for {year}-{month:02d}",
+            after={"period": f"{year}-{month:02d}", "employees": totals["employees"], "net_pay": totals["net_pay"]},
+        )
         db.commit()
     except IntegrityError:  # two requests for the same month at the same moment
         db.rollback()
@@ -351,8 +357,16 @@ def recalculate_run(db: Session, run_id: int) -> PayrollRun:
     run = _get_run(db, run_id)
     _require_draft(run)
     cfg = settings_service.get_settings(db)
+    before = _totals(db, [run.id]).get(run.id, EMPTY_TOTALS)
     try:
         _populate(db, run, cfg)
+        after = _totals(db, [run.id]).get(run.id, EMPTY_TOTALS)
+        audit.record(
+            db, "payroll.recalculate", "payroll_run", run.id,
+            f"Recalculated the payroll draft for {run.year}-{run.month:02d}",
+            before={"employees": before["employees"], "net_pay": before["net_pay"]},
+            after={"employees": after["employees"], "net_pay": after["net_pay"]},
+        )
         db.commit()
     except Exception:
         db.rollback()  # the old payslips stay as they were
