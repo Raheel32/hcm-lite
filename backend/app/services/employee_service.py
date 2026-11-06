@@ -91,6 +91,12 @@ def register_employee(db: Session, data: EmployeeCreate) -> tuple[Employee, str]
             basic_salary=data.basic_salary,
         )
         db.add(employee)
+        db.flush()
+        audit.record(
+            db, "employee.create", "employee", employee.id,
+            f"Registered employee {employee.full_name} ({employee.employee_code})",
+            after={**audit.snapshot(employee, EMPLOYEE_FIELDS), "email": user.email},
+        )
         db.commit()
     except Exception:
         db.rollback()
@@ -164,6 +170,7 @@ def update_employee(db: Session, employee_id: int, data: EmployeeUpdate) -> Empl
     _require_active(db, Department, data.department_id, employee.department_id, InvalidDepartment)
     _require_active(db, Designation, data.designation_id, employee.designation_id, InvalidDesignation)
 
+    before = audit.snapshot(employee, EMPLOYEE_FIELDS)
     employee.full_name = data.full_name
     employee.phone = data.phone
     employee.address = data.address
@@ -173,6 +180,11 @@ def update_employee(db: Session, employee_id: int, data: EmployeeUpdate) -> Empl
     employee.join_date = data.join_date
     employee.status = data.status
     employee.basic_salary = data.basic_salary
+    audit.record_update(
+        db, "employee", employee.id,
+        f"Updated employee {employee.full_name} ({employee.employee_code})",
+        before, audit.snapshot(employee, EMPLOYEE_FIELDS),
+    )
     db.commit()
     db.refresh(employee)
     return employee
@@ -185,9 +197,16 @@ def exit_employee(db: Session, employee_id: int, exit_date: date) -> Employee:
     if exit_date < employee.join_date or exit_date > date.today():
         raise BadExitDate()
 
+    before = {"status": employee.status, "exit_date": employee.exit_date, "login_active": employee.user.is_active}
     employee.status = EmployeeStatus.exited
     employee.exit_date = exit_date
     employee.user.is_active = False  # the login stops working immediately
+    audit.record(
+        db, "employee.exit", "employee", employee.id,
+        f"Marked {employee.full_name} ({employee.employee_code}) as exited on {exit_date.isoformat()}",
+        before=before,
+        after={"status": employee.status, "exit_date": exit_date, "login_active": False},
+    )
     db.commit()
     db.refresh(employee)
     return employee
@@ -195,8 +214,14 @@ def exit_employee(db: Session, employee_id: int, exit_date: date) -> Employee:
 
 def update_self(db: Session, user: User, phone: str | None, address: str | None) -> Employee:
     employee = get_employee_by_user(db, user.id)
+    before = {"phone": employee.phone, "address": employee.address}
     employee.phone = phone
     employee.address = address
+    audit.record_update(
+        db, "employee", employee.id, f"{employee.full_name} updated their contact details",
+        before, {"phone": phone, "address": address},
+        action="employee.self_update",
+    )
     db.commit()
     db.refresh(employee)
     return employee
