@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import hash_password, verify_password
 from app.models.user import User
+from app.services import audit_service as audit
 
 
 class InvalidCredentials(Exception):
@@ -35,6 +36,16 @@ def change_password(db: Session, user: User, current_password: str, new_password
         raise WrongCurrentPassword()
     if current_password == new_password:
         raise SamePassword()
+    #user.password_hash = hash_password(new_password)
+    #user.must_change_password = False
+    #db.commit()
+    was_forced = user.must_change_password
     user.password_hash = hash_password(new_password)
     user.must_change_password = False
+    audit.record(
+        db, "auth.password_changed", "user", user.id,
+        f"{user.email} changed their password",
+        before={"must_change_password": was_forced},
+        after={"must_change_password": False},
+    )
     db.commit()

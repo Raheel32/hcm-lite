@@ -3,6 +3,12 @@ from sqlalchemy.orm import Session
 from app.models.company import Company
 from app.models.settings import CompanySettings
 from app.schemas.settings import SettingsUpdate
+from app.services import audit_service as audit
+
+SETTINGS_FIELDS = (
+    "office_start", "grace_minutes", "half_day_hours", "weekend_days",
+    "office_lat", "office_lng", "radius_m",
+)
 
 
 class NotInitialized(Exception):

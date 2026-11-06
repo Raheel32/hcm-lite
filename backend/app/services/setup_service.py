@@ -29,6 +29,13 @@ def run_first_setup(db: Session, data: SetupRequest) -> Company:
     )
     db.add(company)
     db.add(admin)
+    db.flush()  # gives both an id
+    audit.record(
+        db, "setup.complete", "company", company.id,
+        f"First-run setup: created company {company.name} and its Admin account",
+        after={"company": company.name, "admin_email": admin.email},
+        actor=admin,  # nobody is logged in yet, so the new Admin is the actor
+    )
     db.commit()
     db.refresh(company)
     return company
