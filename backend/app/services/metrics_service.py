@@ -326,6 +326,45 @@ def leave_utilization(db: Session, day: date, department_id: int | None = None) 
             })
     return rows
 
+def on_leave_on(db: Session, day: date, department_id: int | None = None, limit: int = 50) -> dict:
+    """Everyone whose approved leave covers this working day (a real check-in wins, as in the calendar)."""
+    cfg = settings_service.get_settings(db)
+    employees = _employees_in_scope(db, day, day, department_id)
+    away = [
+        emp for emp, entry, _working in iter_day_entries(db, employees, day, day, cfg)
+        if entry["status"].value == "on_leave"
+    ]
+    leave_names: dict = {}
+    if away:
+        rows = (
+            db.query(LeaveRequest.employee_id, LeaveType.name)
+            .join(LeaveType, LeaveRequest.leave_type_id == LeaveType.id)
+            .filter(
+                LeaveRequest.employee_id.in_([emp.id for emp in away]),
+                LeaveRequest.status == LeaveStatus.approved,
+                LeaveRequest.start_date <= day,
+                LeaveRequest.end_date >= day,
+            )
+            .all()
+        )
+        leave_names = {employee_id: name for employee_id, name in rows}
+    by_type = Counter(leave_names.get(emp.id, "Unknown") for emp in away)
+    away.sort(key=lambda emp: (emp.full_name.lower(), emp.id))
+    return {
+        "date": day,
+        "total": len(away),
+        "by_type": [{"leave_type": name, "count": count} for name, count in sorted(by_type.items())],
+        "employees": [
+            {
+                "employee_code": emp.employee_code,
+                "full_name": emp.full_name,
+                "department": emp.department.name,
+                "leave_type": leave_names.get(emp.id),
+            }
+            for emp in away[:limit]
+        ],
+    }
+
 
 # ---------- attendance (one shared pass over the days) ----------
 
