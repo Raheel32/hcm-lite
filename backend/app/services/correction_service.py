@@ -42,6 +42,17 @@ class CannotApply(Exception):
 
 ERRORS = (CorrectionNotFound, DuplicatePending, NotPending, BadDate, BadTimes, CannotApply)
 
+def _attendance_snapshot(record) -> dict | None:
+    """How an attendance record looks, for the audit log."""
+    if record is None:
+        return None
+    return {
+        "check_in": attendance.to_local(record.check_in).isoformat(),
+        "check_out": attendance.to_local(record.check_out).isoformat() if record.check_out else None,
+        "status": record.status.value,
+        "is_late": record.is_late,
+    }
+
 
 # ---------- rules ----------
 
@@ -149,6 +160,12 @@ def create_correction(db: Session, user: User, data: CorrectionCreate) -> Attend
         status=CorrectionStatus.pending,
     )
     db.add(correction)
+    db.flush()
+    notifications.notify_hr(
+        db, "correction.submitted", "New attendance correction request",
+        f"{employee.full_name} asked to correct their attendance for {data.date.isoformat()}.",
+        entity_type="attendance_correction", entity_id=correction.id,
+    )
     db.commit()
     db.refresh(correction)
     return correction
@@ -228,6 +245,7 @@ def approve_correction(db: Session, reviewer: User, correction_id: int, comment:
 
     # Everything is checked again: the record may have changed since the request was made
     record = attendance.find_record(db, employee.id, day)
+    before = _attendance_snapshot(record)  # taken now, before the record is changed
     problem = _employment_problem(employee, day) or _result_problem(
         record, correction.requested_check_in, correction.requested_check_out
     )
@@ -253,6 +271,17 @@ def approve_correction(db: Session, reviewer: User, correction_id: int, comment:
     record.is_late = is_late
     record.source = "correction"
 
+    audit.record(
+        db, "correction.approve", "attendance_correction", correction.id,
+        f"Approved the attendance correction of {employee.full_name} for {day.isoformat()}",
+        before=before, after=_attendance_snapshot(record),
+    )
+    notifications.notify(
+        db, employee.user_id, "correction.approved", "Attendance correction approved",
+        f"Your attendance for {day.isoformat()} was corrected."
+        + (f" Note from HR: {comment}" if comment else ""),
+        entity_type="attendance_correction", entity_id=correction.id,
+    )
     _stamp(correction, reviewer, CorrectionStatus.approved, comment)
     try:
         db.commit()
