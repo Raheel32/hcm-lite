@@ -5,6 +5,10 @@ from sqlalchemy.orm import Session
 
 from app.models.leave_config import Holiday, LeaveType
 from app.schemas.leave_config import HolidayCreate, LeaveTypeCreate, LeaveTypeUpdate
+from app.services import audit_service as audit
+
+LEAVE_TYPE_FIELDS = ("name", "yearly_quota", "is_paid", "is_active")
+HOLIDAY_FIELDS = ("date", "name")
 
 
 class DuplicateName(Exception):
@@ -45,6 +49,12 @@ def create_leave_type(db: Session, data: LeaveTypeCreate) -> LeaveType:
         is_active=True,
     )
     db.add(leave_type)
+    db.flush()
+    audit.record(
+        db, "leave_type.create", "leave_type", leave_type.id,
+        f"Created leave type {leave_type.name}",
+        after=audit.snapshot(leave_type, LEAVE_TYPE_FIELDS),
+    )
     db.commit()
     db.refresh(leave_type)
     return leave_type
@@ -56,10 +66,15 @@ def update_leave_type(db: Session, leave_type_id: int, data: LeaveTypeUpdate) ->
         raise ItemNotFound()
     if _leave_name_taken(db, data.name, exclude_id=leave_type_id):
         raise DuplicateName()
+    before = audit.snapshot(leave_type, LEAVE_TYPE_FIELDS)
     leave_type.name = data.name
     leave_type.yearly_quota = data.yearly_quota
     leave_type.is_paid = data.is_paid
     leave_type.is_active = data.is_active
+    audit.record_update(
+        db, "leave_type", leave_type.id, f"Updated leave type {leave_type.name}",
+        before, audit.snapshot(leave_type, LEAVE_TYPE_FIELDS),
+    )
     db.commit()
     db.refresh(leave_type)
     return leave_type
@@ -86,6 +101,12 @@ def create_holiday(db: Session, data: HolidayCreate) -> Holiday:
         raise DuplicateDate()
     holiday = Holiday(date=data.date, name=data.name)
     db.add(holiday)
+    db.flush()
+    audit.record(
+        db, "holiday.create", "holiday", holiday.id,
+        f"Added holiday {holiday.name} on {holiday.date.isoformat()}",
+        after=audit.snapshot(holiday, HOLIDAY_FIELDS),
+    )
     db.commit()
     db.refresh(holiday)
     return holiday
