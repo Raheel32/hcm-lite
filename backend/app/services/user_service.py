@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from app.core.security import generate_temp_password, hash_password
 from app.models.user import Role, User
 from app.services import audit_service as audit
-from backend.app.models import user
 
 
 class EmailTaken(Exception):
