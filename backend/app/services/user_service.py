@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 
 from app.core.security import generate_temp_password, hash_password
 from app.models.user import Role, User
+from app.services import audit_service as audit
+from backend.app.models import user
 
 
 class EmailTaken(Exception):
@@ -40,6 +42,10 @@ def add_login(db: Session, email: str, role: Role) -> tuple[User, str]:
 
 def create_hr_user(db: Session, email: str) -> tuple[User, str]:
     user, temp_password = add_login(db, email, Role.hr)
+    audit.record(
+        db, "user.create", "user", user.id, f"Created HR login {user.email}",
+        after={"email": user.email, "role": "hr"},
+    )
     db.commit()
     db.refresh(user)
     return user, temp_password
