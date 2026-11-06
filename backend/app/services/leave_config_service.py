@@ -118,8 +118,13 @@ def update_holiday(db: Session, holiday_id: int, data: HolidayCreate) -> Holiday
         raise ItemNotFound()
     if _date_taken(db, data.date, exclude_id=holiday_id):
         raise DuplicateDate()
+    before = audit.snapshot(holiday, HOLIDAY_FIELDS)
     holiday.date = data.date
     holiday.name = data.name
+    audit.record_update(
+        db, "holiday", holiday.id, f"Updated holiday {holiday.name}",
+        before, audit.snapshot(holiday, HOLIDAY_FIELDS),
+    )
     db.commit()
     db.refresh(holiday)
     return holiday
@@ -129,5 +134,10 @@ def delete_holiday(db: Session, holiday_id: int) -> None:
     holiday = db.get(Holiday, holiday_id)
     if holiday is None:
         raise ItemNotFound()
+    audit.record(
+        db, "holiday.delete", "holiday", holiday.id,
+        f"Deleted holiday {holiday.name} on {holiday.date.isoformat()}",
+        before=audit.snapshot(holiday, HOLIDAY_FIELDS),
+    )
     db.delete(holiday)
     db.commit()
