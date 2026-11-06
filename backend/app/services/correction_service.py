@@ -294,6 +294,16 @@ def approve_correction(db: Session, reviewer: User, correction_id: int, comment:
 
 def reject_correction(db: Session, reviewer: User, correction_id: int, comment: str) -> AttendanceCorrection:
     correction = _get_pending(db, correction_id)
+    audit.record(
+        db, "correction.reject", "attendance_correction", correction.id,
+        f"Rejected the attendance correction of {correction.employee.full_name} for {correction.date.isoformat()}",
+        before={"status": "pending"}, after={"status": "rejected", "comment": comment},
+    )
+    notifications.notify(
+        db, correction.employee.user_id, "correction.rejected", "Attendance correction rejected",
+        f"Your correction request for {correction.date.isoformat()} was rejected: {comment}",
+        entity_type="attendance_correction", entity_id=correction.id,
+    )
     _stamp(correction, reviewer, CorrectionStatus.rejected, comment)
     db.commit()
     db.refresh(correction)

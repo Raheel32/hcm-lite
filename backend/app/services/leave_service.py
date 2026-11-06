@@ -11,6 +11,8 @@ from app.models.user import User
 from app.schemas.leave import LeaveApply
 from app.services import attendance_service as attendance
 from app.services import calendar_service, employee_service, settings_service
+from app.services import audit_service as audit
+from app.services import notification_service as notifications
 
 PAST_WINDOW_DAYS = 30
 FUTURE_WINDOW_DAYS = 365
@@ -201,6 +203,13 @@ def apply_leave(db: Session, user: User, data: LeaveApply) -> LeaveRequest:
         status=LeaveStatus.pending,
     )
     db.add(leave)
+    db.flush()
+    notifications.notify_hr(
+        db, "leave.submitted", "New leave request",
+        f"{employee.full_name} requested {days} working day(s) of {leave_type.name} leave "
+        f"({data.start_date.isoformat()} to {data.end_date.isoformat()}).",
+        entity_type="leave_request", entity_id=leave.id,
+    )
     db.commit()
     db.refresh(leave)
     return leave
@@ -316,6 +325,18 @@ def approve_leave(db: Session, reviewer: User, leave_id: int, comment: str | Non
                 f"({used} already approved)"
             )
 
+    audit.record(
+        db, "leave.approve", "leave_request", leave.id,
+        f"Approved {leave.days} day(s) of {leave_type.name} leave for {employee.full_name} "
+        f"({leave.start_date.isoformat()} to {leave.end_date.isoformat()})",
+        before={"status": "pending"}, after={"status": "approved", "comment": comment},
+    )
+    notifications.notify(
+        db, employee.user_id, "leave.approved", "Leave approved",
+        f"Your {leave_type.name} leave from {leave.start_date.isoformat()} to {leave.end_date.isoformat()} was approved."
+        + (f" Note from HR: {comment}" if comment else ""),
+        entity_type="leave_request", entity_id=leave.id,
+    )
     _stamp(leave, reviewer, LeaveStatus.approved, comment)
     db.commit()
     db.refresh(leave)
@@ -324,6 +345,18 @@ def approve_leave(db: Session, reviewer: User, leave_id: int, comment: str | Non
 
 def reject_leave(db: Session, reviewer: User, leave_id: int, comment: str) -> LeaveRequest:
     leave = _get_pending(db, leave_id)
+    audit.record(
+        db, "leave.reject", "leave_request", leave.id,
+        f"Rejected {leave.days} day(s) of {leave.leave_type.name} leave for {leave.employee.full_name} "
+        f"({leave.start_date.isoformat()} to {leave.end_date.isoformat()})",
+        before={"status": "pending"}, after={"status": "rejected", "comment": comment},
+    )
+    notifications.notify(
+        db, leave.employee.user_id, "leave.rejected", "Leave rejected",
+        f"Your {leave.leave_type.name} leave from {leave.start_date.isoformat()} to "
+        f"{leave.end_date.isoformat()} was rejected: {comment}",
+        entity_type="leave_request", entity_id=leave.id,
+    )
     _stamp(leave, reviewer, LeaveStatus.rejected, comment)
     db.commit()
     db.refresh(leave)
