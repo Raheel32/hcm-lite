@@ -934,11 +934,21 @@ def test_bullet_markers_are_cleaned(client, llm, hr, scenario):
 
 
 def test_summary_filters_and_input_checks(client, llm, hr, org, scenario):
-    fake = llm(say(GOOD))
-    assert summarize(client, hr, department_id=org["sales"]).status_code == 200
+    sales_only = bullets_json(
+        "Sales has 1 person.",
+        "The attendance rate for the period was 100.0%.",
+        "Late arrivals and absenteeism were both 0.0 percent.",
+    )
+    fake = llm(say(sales_only))
+    r = summarize(client, hr, department_id=org["sales"])
+    assert r.status_code == 200
+    assert r.json()["fallback"] is False and r.json()["range"]["department_id"] == org["sales"]
+
+    # The model was given Sales numbers only (Cid: 3 days present, on leave today)
     sent = json.loads(fake.calls[0]["messages"][1]["content"].split("Dashboard data:\n", 1)[1])
     assert sent["range"]["department_id"] == org["sales"]
     assert sent["kpis"]["headcount"] == 1
+    assert sent["period"]["counts"]["present"] == 3 and sent["period"]["attendance_rate"] == 100.0
 
     assert summarize(client, hr, department_id=999).status_code == 404
     assert summarize(client, hr, date_from="2026-11-05", date_to="2026-11-01").status_code == 400
