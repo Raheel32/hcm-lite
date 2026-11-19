@@ -1,0 +1,5 @@
+# Everything needed to develop and test. Install this one: it includes the runtime file.
+-r requirements.txt
+pytest==9.2.0
+bandit==1.9.4
+pip-audit==2.10.1
