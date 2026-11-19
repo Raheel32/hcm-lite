@@ -1,6 +1,32 @@
+# Python
 venv/
 .venv/
-.env
 __pycache__/
-node_modules/
 *.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Secrets and local configuration (the .env.example template IS committed)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local databases and logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Frontend
+node_modules/
+dist/
+build/
+
+# Editors and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
